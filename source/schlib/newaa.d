@@ -170,7 +170,8 @@ struct Hash(K, V)
             firstUsed = 0;
             used -= deleted;
             deleted = 0;
-            GC.free(obuckets.ptr); // safe to free b/c impossible to reference
+            if(!__ctfe)
+                GC.free(obuckets.ptr); // safe to free b/c impossible to reference
         }
 
         void clear() pure nothrow
@@ -376,6 +377,31 @@ struct Hash(K, V)
         import std.array;
         return this.byValue.array;
     }
+
+    void clear() pure nothrow
+    {
+        if(length > 0)
+            aa.clear();
+    }
+
+    bool remove(const K key)
+    {
+        if(!aa)
+            return false;
+        auto h = calcHash(key);
+        auto loc = aa.findSlotLookupOrInsert(h, key);
+        if(!loc.empty)
+        {
+            loc.hash = HASH_DELETED;
+            loc.entry = null;
+            ++aa.deleted;
+
+            if (aa.length * SHRINK_DEN < aa.dim * SHRINK_NUM && (__ctfe || !GC.inFinalizer()))
+                aa.shrink();
+            return true;
+        }
+        return false;
+    }
 }
 
 private size_t mix(size_t h) @safe pure nothrow @nogc
@@ -448,4 +474,10 @@ unittest {
 
     h = h; // ensure assignment works.
     Hash!(string, int) h2 = h; // ensure construction works;
+    h.remove("one");
+    writeln(aa);
+    writeln(h[]);
+    import std.exception;
+    import core.exception;
+    assertThrown!RangeError(h2["four"]);
 }
