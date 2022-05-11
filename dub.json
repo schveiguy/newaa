@@ -1,0 +1,10 @@
+{
+	"authors": [
+		"Steven Schveighoffer",
+                "Martin Nowak"
+	],
+	"copyright": "Copyright © 2022, Steven Schveighoffer, Digital Mars",
+	"description": "Associative Array library that mirrors druntime, but is fully templated",
+	"license": "Boost-1.0",
+	"name": "newaa"
+}

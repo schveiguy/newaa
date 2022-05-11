@@ -1,0 +1,16 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/newaa
+newaa.so
+newaa.dylib
+newaa.dll
+newaa.a
+newaa.lib
+newaa-test-*
+*.exe
+*.o
+*.obj
+*.lst
+.*.swp
