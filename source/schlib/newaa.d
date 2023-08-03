@@ -200,32 +200,55 @@ struct Hash(K, V)
         return aa ? aa.length : 0;
     }
 
-    ref V opIndexAssign(V value, const K key)
+    static if(__traits(compiles, {V x; x = V.init;}))
+    {
+        ref V opIndexAssign(V value, const K key)
+        {
+            if(!aa)
+                aa = new Impl(INIT_NUM_BUCKETS);
+            auto h = calcHash(key);
+            auto location = aa.findSlotLookupOrInsert(h, key);
+            assert(location !is null);
+            if(location.empty)
+            {
+                if(location.deleted)
+                    --aa.deleted;
+                else if(++aa.used * GROW_DEN > aa.dim * GROW_NUM)
+                {
+                    aa.grow();
+                    location = aa.findSlotInsert(h);
+                }
+
+                aa.firstUsed = min(aa.firstUsed, cast(uint)(location - aa.buckets.ptr));
+                location.hash = h;
+                location.entry = new Entry(key, value);
+            }
+            else
+            {
+                location.entry.value = value;
+            }
+            return location.entry.value;
+        }
+    }
+
+    // only called from building an empty AA, works even when assignment isn't
+    // valid for the given value type.
+    private void initializeValue(V value, const K key)
     {
         if(!aa)
             aa = new Impl(INIT_NUM_BUCKETS);
         auto h = calcHash(key);
         auto location = aa.findSlotLookupOrInsert(h, key);
         assert(location !is null);
-        if(location.empty)
+        if(++aa.used * GROW_DEN > aa.dim * GROW_NUM)
         {
-            if(location.deleted)
-                --aa.deleted;
-            else if(++aa.used * GROW_DEN > aa.dim * GROW_NUM)
-            {
-                aa.grow();
-                location = aa.findSlotInsert(h);
-            }
+            aa.grow();
+            location = aa.findSlotInsert(h);
+        }
 
-            aa.firstUsed = min(aa.firstUsed, cast(uint)(location - aa.buckets.ptr));
-            location.hash = h;
-            location.entry = new Entry(key, value);
-        }
-        else
-        {
-            location.entry.value = value;
-        }
-        return location.entry.value;
+        aa.firstUsed = min(aa.firstUsed, cast(uint)(location - aa.buckets.ptr));
+        location.hash = h;
+        location.entry = new Entry(key, value);
     }
 
     ref V opIndex(const K key, string file = __FILE__, size_t line = __LINE__) @safe
@@ -300,7 +323,7 @@ struct Hash(K, V)
         {
             aa = null;
             foreach(k, v; other)
-                this[k] = v;
+                initializeValue(v, k);
         }
         static if(is(OK == K) && is(OV == V))
         {
@@ -333,7 +356,7 @@ struct Hash(K, V)
             // build manually
             aa = null;
             foreach(e; other[])
-                this[e.key] = e.value;
+                initializeValue(e.value, e.key);
         }
     }
 
@@ -480,4 +503,14 @@ unittest {
     import std.exception;
     import core.exception;
     assertThrown!RangeError(h2["four"]);
+}
+
+unittest
+{
+    immutable(string)[string] iaa0 = ["l" : "left"];
+    Hash!(string, immutable(string)) h0 = iaa0;
+
+    immutable struct S { int x; }
+    S[string] iaa1 = ["10" : S(10)];
+    Hash!(string, S) h1 = iaa1;
 }
