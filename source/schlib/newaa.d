@@ -185,12 +185,14 @@ struct Hash(K, V)
 
         static Bucket[] allocBuckets(size_t dim) @trusted pure nothrow
         {
-            enum attr = GC.BlkAttr.NO_INTERIOR;
-            immutable sz = dim * Bucket.sizeof;
             if(__ctfe)
-                return new Bucket[sz];
+                return new Bucket[dim];
             else
+            {
+                enum attr = GC.BlkAttr.NO_INTERIOR;
+                immutable sz = dim * Bucket.sizeof;
                 return (cast(Bucket*) GC.calloc(sz, attr))[0 .. dim];
+            }
         }
     }
 
